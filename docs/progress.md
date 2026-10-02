@@ -43,6 +43,14 @@ Add a new dated section at the top for each work session. The design itself is i
 - **Soft hyphens:** the PDF uses U+00AD as a visible hyphen ("shibh-i-amd", "House-breaking"), so it is mapped to `-`. This affected 22 chunks, and the act was re-ingested with `--force`.
 - **Queue worker caches code:** it must be restarted after code changes (`docker compose restart worker`).
 
+### Browser preview (added after Phase 2)
+- `GET /api/sources` lists the acts with chunk and embedded counts. `GET /api/search?q=&limit=` is a plain
+  vector search, a preview with no threshold or de-duplication yet.
+- The React page at http://localhost:5173 has a semantic search box with example questions, a list of ingested laws and the system status.
+- **Fix:** the frontend container now has its own `node_modules` volume (`docker/node/Dockerfile`).
+  Sharing it with the host broke native binaries, because Alpine uses musl and the host uses glibc.
+- **Fix:** nginx re-resolves `backend` via Docker DNS. Before this, rebuilding the backend gave a 502 until nginx was restarted.
+
 ### Next up: Phase 3, retrieval
 1. A `Retriever` service: embed the question with the `search_query:` prefix, find the top-k chunks by cosine distance, apply the similarity threshold, and optionally filter by source.
 2. A `law:search "question"` command to inspect results and scores, and to tune `RAG_SIMILARITY_THRESHOLD`.
