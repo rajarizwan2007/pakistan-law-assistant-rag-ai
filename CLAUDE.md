@@ -24,7 +24,8 @@ demonstration. It is **not** a production system and must **not** present output
 
 ## Layout
 
-Full design: `docs/architecture.md`.
+Full design: `docs/architecture.md`. Work history, decisions and next steps: `docs/progress.md`.
+Add a dated entry there at the end of each work session.
 
 ```
 frontend/         React 19 + TypeScript + Vite (chat UI, citation display)
