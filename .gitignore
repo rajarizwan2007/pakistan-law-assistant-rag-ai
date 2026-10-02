@@ -1,0 +1,72 @@
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Claude Code personal files ---
+CLAUDE.local.md
+.claude/settings.local.json
+
+# --- Laravel (backend) ---
+/backend/vendor/
+/backend/node_modules/
+/backend/public/build/
+/backend/public/hot
+/backend/public/storage
+/backend/storage/*.key
+/backend/storage/logs/*
+/backend/storage/framework/cache/*
+/backend/storage/framework/sessions/*
+/backend/storage/framework/views/*
+/backend/storage/app/*
+!/backend/storage/**/.gitignore
+/backend/bootstrap/cache/*.php
+/backend/.phpunit.result.cache
+/backend/.phpunit.cache/
+.php-cs-fixer.cache
+
+# --- React (frontend) ---
+node_modules/
+/frontend/dist/
+/frontend/build/
+/frontend/coverage/
+*.tsbuildinfo
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Python helper scripts (ingestion / evaluation, if used) ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- Docker / local data volumes ---
+/docker/data/
+/pgdata/
+/ollama/
+*.dump
+*.sql.gz
+
+# --- Raw and processed legal documents (large; re-downloadable) ---
+/data/raw/
+/data/processed/
+/data/embeddings/
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Editors / OS ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
