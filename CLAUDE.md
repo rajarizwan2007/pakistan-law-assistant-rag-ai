@@ -70,6 +70,8 @@ PHP and Composer run **only inside Docker**. The host has PHP 7.4, which Laravel
 - Tests: PHPUnit/Pest for backend, Vitest for frontend. Add tests for retrieval and
   prompt-building logic in particular.
 - Commits: small, descriptive commits; one logical change per commit.
+- Authorship: commits and PRs credit only Raja Rizwan (rajarizwan2007). Never add
+  `Co-Authored-By: Claude` trailers, "Generated with Claude Code" lines or any other Claude attribution.
 
 ## Commands
 
