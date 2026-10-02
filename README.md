@@ -52,7 +52,7 @@ If no relevant passages are found, the assistant says it cannot answer from its 
 | Layer            | Technology                    |
 |------------------|-------------------------------|
 | Frontend         | React (Vite)                  |
-| Backend API      | Laravel (PHP)                 |
+| Backend API      | Laravel 13 (PHP 8.4)          |
 | Database         | PostgreSQL + pgvector         |
 | LLM / embeddings | Ollama (local models)         |
 | Infrastructure   | Docker, Docker Compose        |

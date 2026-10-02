@@ -16,7 +16,7 @@ demonstration. It is **not** a production system and must **not** present output
 | Layer       | Technology                                   |
 |-------------|----------------------------------------------|
 | Frontend    | React (Vite)                                 |
-| Backend API | Laravel (PHP)                                |
+| Backend API | Laravel 13 (PHP 8.4)                         |
 | Database    | PostgreSQL + `pgvector` (documents, chunks, embeddings) |
 | LLM / embeddings | Ollama running a local model            |
 | Infra       | Docker / Docker Compose                      |
