@@ -9,7 +9,8 @@ citations to the act and section they rely on.
 
 ## Status
 
-🚧 Early development. The repository currently contains project setup only.
+🚧 Early development. The development environment (Docker, Laravel API, React app, Postgres +
+pgvector, Ollama) is set up. The RAG features are next.
 
 ## What this project demonstrates
 
@@ -51,7 +52,7 @@ If no relevant passages are found, the assistant says it cannot answer from its 
 
 | Layer            | Technology                    |
 |------------------|-------------------------------|
-| Frontend         | React (Vite)                  |
+| Frontend         | React 19 + TypeScript (Vite)  |
 | Backend API      | Laravel 13 (PHP 8.4)          |
 | Database         | PostgreSQL + pgvector         |
 | LLM / embeddings | Ollama (local models)         |
@@ -59,19 +60,28 @@ If no relevant passages are found, the assistant says it cannot answer from its 
 
 ## Getting started
 
-> These steps describe the intended setup and will be finalised as the services are built.
-
-**Prerequisites:** Git, Docker and Docker Compose, Ollama
+**Prerequisites:** Git, Docker with Docker Compose v2, about 8 GB of free disk space for images and
+models. You don't need PHP, Composer or Ollama on the host, because everything runs in containers.
 
 ```bash
 git clone https://github.com/rajarizwan2007/pakistan-law-assistant-rag-ai.git
 cd pakistan-law-assistant-rag-ai
-cp .env.example .env
-docker compose up -d
-# pull the chat and embedding models (exact models TBD)
-# run database migrations
-# ingest the legal documents
+cp backend/.env.example backend/.env
+
+make up                              # build and start all services
+make artisan c="key:generate"        # create the Laravel app key (first time only)
+make migrate                         # create database tables
+make models                          # download the local LLM models (~2.3 GB, first time only)
 ```
+
+Then open:
+
+| URL | What |
+|-----|------|
+| http://localhost:5173 | React frontend (shows system status) |
+| http://localhost:8090/api/health | API health check (database, pgvector, Ollama models) |
+
+Run `make help` to list all commands. Run `make test` to run the backend tests.
 
 ## Data sources (planned)
 
@@ -86,7 +96,7 @@ instructions will be added here.
 
 ## Roadmap
 
-- [ ] Docker Compose setup: PostgreSQL + pgvector, Ollama, Laravel, React
+- [x] Docker Compose setup: PostgreSQL + pgvector, Ollama, Laravel, React
 - [ ] Database schema for documents, chunks and embeddings
 - [ ] Ingestion and chunking pipeline
 - [ ] Retrieval endpoint (vector similarity search)

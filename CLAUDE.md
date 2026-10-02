@@ -22,19 +22,22 @@ demonstration. It is **not** a production system and must **not** present output
 | Infra       | Docker / Docker Compose                      |
 | Hosting     | GitHub (`rajarizwan2007/pakistan-law-assistant-rag-ai`) |
 
-## Planned layout
+## Layout
 
-The repo is at an early stage; update this section as directories are created.
+Full design: `docs/architecture.md`.
 
 ```
-frontend/         React app (chat UI, citation display)
-backend/          Laravel API (ingestion, retrieval, answer generation)
-docker/           Dockerfiles and service config
-data/raw/         Source legal documents (git-ignored)
-data/processed/   Cleaned/chunked text (git-ignored)
+frontend/         React 19 + TypeScript + Vite (chat UI, citation display)
+backend/          Laravel 13 API on PHP 8.4 (ingestion, retrieval, answer generation)
+docker/           Dockerfiles and service config (php, nginx, postgres init)
+data/raw/         Source legal documents (git-ignored, not created yet)
+data/processed/   Cleaned/chunked text (git-ignored, not created yet)
 docs/             Architecture notes, decisions, evaluation results
 docker-compose.yml
+Makefile          Shortcuts for common commands (`make help`)
 ```
+
+PHP and Composer run **only inside Docker**. The host has PHP 7.4, which Laravel 13 can't use.
 
 ## RAG pipeline (intended design)
 
@@ -70,5 +73,15 @@ docker-compose.yml
 
 ## Commands
 
-To be filled in once the services exist (e.g., `docker compose up`, `php artisan migrate`,
-`npm run dev`, test commands, ingestion command).
+| Task | Command |
+|------|---------|
+| Start everything | `make up` (`docker compose up -d --build`) |
+| Download LLM models | `make models` |
+| Check service health | `make health` or open http://localhost:5173 |
+| Run migrations | `make migrate` |
+| Run backend tests | `make test` |
+| Artisan / Composer | `make artisan c="route:list"`, `make composer c="require x/y"` |
+| Postgres shell | `make psql` |
+| Logs | `make logs s=backend` |
+
+Ports on the host: frontend 5173, API 8090, Postgres 5433, Ollama 11434.
