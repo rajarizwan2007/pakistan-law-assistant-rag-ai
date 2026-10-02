@@ -3,6 +3,7 @@
 A short record of what has been built and decided, so later work can pick up from here.
 Add a new dated section at the top for each work session. The design itself is in
 [`architecture.md`](architecture.md); this file records *what was done and why*.
+A readable overview of all phases (done and planned) is in [`project-plan.pdf`](project-plan.pdf).
 
 ---
 

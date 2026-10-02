@@ -13,6 +13,8 @@ citations to the act and section they rely on.
 measured with an evaluation set: the correct section is in the top 5 for 85% of questions, and
 off-topic questions are refused. Answer generation with citations is next.
 
+📄 **Project plan & progress report (PDF):** [`docs/project-plan.pdf`](docs/project-plan.pdf). It explains every completed phase and the plan for the remaining ones.
+
 ## What this project demonstrates
 
 - An end-to-end RAG pipeline: ingest → chunk → embed → retrieve → generate → cite
