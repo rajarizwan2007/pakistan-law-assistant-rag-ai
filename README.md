@@ -9,8 +9,8 @@ citations to the act and section they rely on.
 
 ## Status
 
-🚧 Early development. The development environment (Docker, Laravel API, React app, Postgres +
-pgvector, Ollama) is set up. The RAG features are next.
+🚧 Early development. The development environment is set up, and the Pakistan Penal Code is
+ingested: split into sections and embedded in pgvector. Retrieval and answering are next.
 
 ## What this project demonstrates
 
@@ -83,22 +83,32 @@ Then open:
 
 Run `make help` to list all commands. Run `make test` to run the backend tests.
 
-## Data sources (planned)
+## Data sources
 
-A small, curated set of Pakistani legal texts, for example:
+| Act | Source | Notes |
+|-----|--------|-------|
+| Pakistan Penal Code, 1860 | [pakistancode.gov.pk (official PDF)](https://pakistancode.gov.pk/pdffiles/administratord5622ea3f15bfa00b17d2cf7770a8434.pdf) | Retrieved 2026-10-02. The text starts at PDF page 30. |
 
-- Constitution of the Islamic Republic of Pakistan, 1973
-- Pakistan Penal Code, 1860
-- Code of Criminal Procedure, 1898
+Planned: Constitution of Pakistan, 1973 and Code of Criminal Procedure, 1898.
 
-Raw documents are not committed to this repository. Download links and ingestion
-instructions will be added here.
+Raw documents aren't committed. Download each file into `data/raw/` and ingest it:
+
+```bash
+curl -L -o data/raw/pakistan-penal-code-1860.pdf \
+  "https://pakistancode.gov.pk/pdffiles/administratord5622ea3f15bfa00b17d2cf7770a8434.pdf"
+
+make artisan c='law:ingest raw/pakistan-penal-code-1860.pdf --title="Pakistan Penal Code, 1860" \
+  --short=PPC --year=1860 --from-page=30 \
+  --url=https://pakistancode.gov.pk/pdffiles/administratord5622ea3f15bfa00b17d2cf7770a8434.pdf'
+
+make artisan c="law:status"     # embedding progress (the worker embeds ~50 chunks/minute on CPU)
+```
 
 ## Roadmap
 
 - [x] Docker Compose setup: PostgreSQL + pgvector, Ollama, Laravel, React
-- [ ] Database schema for documents, chunks and embeddings
-- [ ] Ingestion and chunking pipeline
+- [x] Database schema for documents, chunks and embeddings
+- [x] Ingestion and chunking pipeline (Pakistan Penal Code ingested)
 - [ ] Retrieval endpoint (vector similarity search)
 - [ ] Answer generation with citations and refusal when sources are missing
 - [ ] React chat UI with citation display

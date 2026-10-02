@@ -17,6 +17,50 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Embedding prefixes
+    |--------------------------------------------------------------------------
+    |
+    | nomic-embed-text is trained with task prefixes: stored passages use
+    | "search_document: " and user questions use "search_query: ". Using the
+    | right prefix on each side noticeably improves retrieval.
+    |
+    */
+
+    'document_prefix' => 'search_document: ',
+
+    'query_prefix' => 'search_query: ',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Chunking & embedding jobs
+    |--------------------------------------------------------------------------
+    |
+    | Each legal section becomes one chunk. Sections longer than max_tokens are
+    | split into windows that overlap by overlap_tokens so no sentence loses
+    | its context. Token counts are estimated as characters / 4.
+    |
+    */
+
+    'chunk_max_tokens' => (int) env('RAG_CHUNK_MAX_TOKENS', 500),
+
+    'chunk_overlap_tokens' => (int) env('RAG_CHUNK_OVERLAP_TOKENS', 50),
+
+    'embed_batch_size' => (int) env('RAG_EMBED_BATCH_SIZE', 16),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Data directory
+    |--------------------------------------------------------------------------
+    |
+    | Relative file paths given to `php artisan law:ingest` are resolved here.
+    | In Docker, the repository's data/ folder is mounted at /var/www/data.
+    |
+    */
+
+    'data_path' => env('RAG_DATA_PATH', '/var/www/data'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Retrieval
     |--------------------------------------------------------------------------
     |

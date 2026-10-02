@@ -6,6 +6,50 @@ Add a new dated section at the top for each work session. The design itself is i
 
 ---
 
+## 2026-10-02 — Phase 2: schema & ingestion
+
+### Built
+- **Migrations:**
+  - `sources`: title is unique, plus short_name, unit (section/article), year, source_url, file_name, checksum and retrieved_at.
+  - `chunks`: chapter, section_ref, heading, content, token_count, `vector(768)` embedding and embedding_model, plus a generated `content_tsv` column.
+  - Indexes: **HNSW** (cosine) on the embedding and **GIN** on `content_tsv`.
+- **Models:** `Source` with `cite()` → "PPC s.379", and `Chunk` with the pgvector `Vector` cast, `HasNeighbors` and `embeddingText()`.
+- **`DocumentTextExtractor`:** runs `pdftohtml -xml` and keeps only body-size text, which drops footnotes and footnote markers. It removes `Page N of M` lines and normalises look-alike characters.
+- **`LegalTextChunker`:** one chunk per section, with heading and chapter, and 500-token windows with 50-token overlap for long sections.
+- **`IngestionService`:** uses the checksum so re-running is safe, does a transactional replace of chunks, and returns the embedding batches.
+- **`EmbedChunks` job:** sends batches of 16 with the `search_document:` prefix, checks the vector dimensions, and skips chunks that are already embedded.
+- **Commands:**
+  - `php artisan law:ingest <file> --title= --short= --unit= --year= --url= --retrieved= --from-page= --force --sync`
+  - `php artisan law:status`
+- **`OllamaClient::embed()`**, which embeds a batch of texts in one call to `/api/embed`.
+- **Infrastructure:** `poppler-utils` added to the PHP image, and `./data` mounted at `/var/www/data` in backend and worker.
+- **Tests:** 21 tests pass (70 assertions). They cover the chunker unit tests, extractor XML filtering, and the ingest command (queueing, unchanged-file skip, changed-file replace, sync embeddings, wrong-dimension error).
+
+### Data
+- The Pakistan Penal Code PDF was downloaded from pakistancode.gov.pk into `data/raw/` (git-ignored; the URL is in README).
+- Ingested with `--from-page=30`, because pages 1–29 are the table of contents.
+- Result: **666 chunks, 631 sections, s.1–s.511**, 161 tokens on average and 500 at most. All sections have headings.
+- Embedding all 666 chunks takes about 13 minutes on the CPU through the queue worker.
+- **Vector search check:** the correct section came first for all 5 test questions: theft → s.379 (0.83),
+  qatl-i-amd → s.302 (0.83), blasphemy → s.295C (0.74), car theft → s.381A (0.77), defamation → s.500 (0.83).
+  Long sections can return 2 windows of the same section, so retrieval should de-duplicate by section.
+
+### Problems found and fixed
+- **Footnotes and page footers:** plain `pdftotext` mixed footnotes into the text, so I switched to font-size filtering.
+- **Footer font size differs by poppler version:** the container's poppler 25.03 reports the footer as 17pt against an 18pt body, so the font filter alone missed it. Footers are now dropped by pattern instead.
+- **Heading variants:** `“Oath.”`, `…not committed;`, `.––`, and headings with no punctuation before "Whoever" all needed handling.
+- **Leading brackets:** `[ [ 478.` (doubled amendment brackets) needed handling.
+- **Odd semicolon:** the PDF uses U+037E (Greek question mark) instead of `;`, so it is normalised.
+- **Soft hyphens:** the PDF uses U+00AD as a visible hyphen ("shibh-i-amd", "House-breaking"), so it is mapped to `-`. This affected 22 chunks, and the act was re-ingested with `--force`.
+- **Queue worker caches code:** it must be restarted after code changes (`docker compose restart worker`).
+
+### Next up: Phase 3, retrieval
+1. A `Retriever` service: embed the question with the `search_query:` prefix, find the top-k chunks by cosine distance, apply the similarity threshold, and optionally filter by source.
+2. A `law:search "question"` command to inspect results and scores, and to tune `RAG_SIMILARITY_THRESHOLD`.
+3. A small set of evaluation questions with expected sections, to measure how often retrieval finds the right section.
+
+---
+
 ## 2026-10-02 — Project bootstrap & Phase 1 (development environment)
 
 ### Repository

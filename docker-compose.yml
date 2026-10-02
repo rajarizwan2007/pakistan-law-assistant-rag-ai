@@ -9,6 +9,8 @@ x-backend: &backend
   image: law-assistant-php:8.4
   volumes:
     - ./backend:/var/www/backend
+    # Legal source documents for `php artisan law:ingest`
+    - ./data:/var/www/data
   depends_on:
     db:
       condition: service_healthy

@@ -61,21 +61,44 @@ sequenceDiagram
 ## 3. Ingestion flow
 
 ```
-data/raw/<act>.txt|pdf
-   │  php artisan law:ingest {file} --source="Pakistan Penal Code, 1860"
+data/raw/<act>.pdf|txt
+   │  php artisan law:ingest raw/<act>.pdf --title="Pakistan Penal Code, 1860" --short=PPC --from-page=30
    ▼
-Parse & clean text ──▶ Split by legal structure (Article / Section headings)
-   │                     └─ fallback: ~500-token windows with ~50-token overlap
+DocumentTextExtractor   pdftohtml -xml → keep only body-size text (drops footnotes and
+   │                    footnote markers, which use a smaller font) → rebuild lines → drop "Page N of M"
    ▼
-Insert `sources` row + `chunks` rows (embedding = NULL)
+LegalTextChunker        one chunk per section/article ("379. Punishment for theft. ...")
+   │                    • heading and chapter recorded for each chunk
+   │                    • sections > 500 tokens → overlapping windows (50-token overlap)
+   │                    • repealed stubs / bare sub-headings (< 8 words) dropped
    ▼
-Dispatch EmbedChunks jobs (batches) ──▶ worker ──▶ Ollama embed("search_document: ...")
+IngestionService        one transaction: upsert `sources` row, replace its `chunks` (embedding = NULL)
    ▼
-Update chunks.embedding, embedding_model
+EmbedChunks jobs        batches of 16 → worker → Ollama /api/embed("search_document: PPC s.379 — heading\n...")
+   ▼
+chunks.embedding, embedding_model filled in       (check progress: php artisan law:status)
 ```
 
-Ingestion is **idempotent**: a source is identified by the checksum of its file. Re-ingesting
-an unchanged file is a no-op. A changed file replaces that source's chunks.
+Ingestion is **idempotent**. A source is identified by its title, and the file's sha256 checksum
+is stored with it. Re-ingesting an unchanged file does nothing, unless `--force` is given. A changed file
+replaces that source's chunks.
+
+**Why PDF font sizes rather than plain text:** `pdftotext` mixes amendment footnotes into the
+body ("2Subs. by Ord. 21 of 1960...") and glues footnote markers to words ("2[Pakistan]"). In the
+official Pakistan Code PDFs, those are typeset smaller than the body text. Filtering by font size
+removes them reliably, which regex clean-up can't.
+
+**Section detection rules** (`LegalTextChunker`):
+- A line starting with `379.`, `381A.`, `[302.` or `[ [ 478.` starts a section. The number must
+  increase, and jumps of more than 25 are rejected. This keeps cross-references that wrap onto a
+  new line ("…under section\n420.") from being mistaken for new sections.
+- The heading is the text up to the first `.` or `;`, followed by `__`, `-`, `—`, `––` or a space. If there's no
+  punctuation, the heading ends where the rule text begins ("Whoever…", "Whenever…").
+- Paragraph breaks are kept before `(a)`, `Explanation`, `Illustration`, `Exception` and `Provided`.
+
+**First act ingested:** Pakistan Penal Code, 1860, from pakistancode.gov.pk (179-page PDF; the text
+starts at page 30). The result is 666 chunks covering 631 sections. 2 numbers are absent because
+the provisions are repealed: s.18 and s.325.
 
 ## 4. Models (Ollama)
 
@@ -100,10 +123,12 @@ erDiagram
 
     sources {
         bigint id PK
-        string title "Pakistan Penal Code, 1860"
+        string title UK "Pakistan Penal Code, 1860"
         string short_name "PPC"
+        string unit "section | article"
         smallint year
         string source_url
+        string file_name
         string checksum "sha256 of raw file"
         timestamp retrieved_at
         timestamps created_updated
@@ -112,8 +137,9 @@ erDiagram
         bigint id PK
         bigint source_id FK
         int chunk_index "order within source"
-        string section_ref "s.302 / Art.25"
-        string heading
+        string chapter "CHAPTER XVII — OF OFFENCES AGAINST PROPERTY"
+        string section_ref "302, 381A (null for preamble)"
+        string heading "Punishment for theft"
         text content
         int token_count
         vector_768 embedding "nullable until embedded"
@@ -135,8 +161,13 @@ erDiagram
 
 Indexes:
 - `chunks.embedding`: **HNSW** with `vector_cosine_ops`. It gives fast approximate nearest-neighbour search and, unlike IVFFlat, needs no training step.
-- `chunks.content_tsv`: **GIN** index. It is reserved for hybrid search (Phase 2), where an exact section number such as "302" is better matched by keyword than by embedding.
-- `chunks (source_id, chunk_index)` is unique.
+- `chunks.content_tsv`: **GIN** index. It is reserved for hybrid search (later improvements), where an exact section number such as "302" is better matched by keyword than by embedding.
+- `chunks (source_id, chunk_index)` is unique, and `chunks (source_id, section_ref)` is indexed for lookups by section.
+
+Citations are formatted from `sources.short_name`, `sources.unit` and `chunks.section_ref`:
+`PPC s.379` or `Constitution Art.25` (`Source::cite()`).
+
+The `queries` table is created in the answering phase.
 
 ## 6. API contract (v1)
 
@@ -174,7 +205,7 @@ Response `200`:
 
 Errors use Laravel's standard JSON shape: `422` for validation errors and `503` when Ollama or the DB is unavailable.
 
-The answer is returned in one piece in v1. Streaming over Server-Sent Events is planned for Phase 2.
+The answer is returned in one piece in v1. Streaming over Server-Sent Events is planned as a later improvement.
 
 ## 7. Laravel backend structure
 
@@ -188,13 +219,16 @@ backend/app/
 │   └── Resources/AnswerResource.php
 ├── Services/
 │   ├── Ollama/OllamaClient.php                # HTTP wrapper: embed(), chat()
+│   ├── Ingestion/DocumentTextExtractor.php     # PDF/TXT → body text (font-size filter)
 │   ├── Ingestion/LegalTextChunker.php          # split by Article/Section, fallback windows
+│   ├── Ingestion/IngestionService.php          # checksum, store source + chunks, embedding batches
 │   ├── Retrieval/Retriever.php                 # vector search, threshold, source filter
 │   ├── Answering/PromptBuilder.php             # grounded prompt template
 │   ├── Answering/CitationParser.php            # [n] → chunk/section, drops invalid refs
 │   └── Answering/AnswerService.php             # orchestrates retrieve → prompt → generate
 ├── Jobs/EmbedChunks.php
 ├── Console/Commands/IngestLegalText.php       # php artisan law:ingest
+├── Console/Commands/LegalSourcesStatus.php    # php artisan law:status
 └── Models/{Source,Chunk,Query}.php
 config/rag.php                                  # top_k, similarity_threshold, models, prompt
 ```
@@ -254,10 +288,10 @@ The dev machine has 15 GB RAM and no GPU. To keep inference usable:
 
 ## 12. Build phases
 
-1. **Infrastructure:** Docker Compose with `db`, `ollama`, `backend`, `nginx`, `worker` and `frontend`, plus a health endpoint.
-2. **Schema & ingestion:** migrations, chunker, `law:ingest`, embedding jobs and one act ingested.
+1. **Infrastructure** ✅: Docker Compose with `db`, `ollama`, `backend`, `nginx`, `worker` and `frontend`, plus a health endpoint.
+2. **Schema & ingestion** ✅: migrations, chunker, `law:ingest`, embedding jobs and one act ingested.
 3. **Retrieval:** the `Retriever`, threshold handling and a debug endpoint/command to inspect results.
 4. **Answering:** prompt builder, citation parser and `POST /api/ask`, with tests using `Http::fake()`.
 5. **Frontend:** chat UI, citations, source panel and disclaimer.
 6. **Evaluation:** a set of questions with expected sections, to measure retrieval hit-rate and refusal accuracy.
-7. **Phase 2:** hybrid search (vector + full-text), SSE streaming, reranking, CI with GitHub Actions.
+7. **Later improvements:** hybrid search (vector + full-text), SSE streaming, reranking, CI with GitHub Actions.

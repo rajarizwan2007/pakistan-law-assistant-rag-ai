@@ -31,8 +31,7 @@ Add a dated entry there at the end of each work session.
 frontend/         React 19 + TypeScript + Vite (chat UI, citation display)
 backend/          Laravel 13 API on PHP 8.4 (ingestion, retrieval, answer generation)
 docker/           Dockerfiles and service config (php, nginx, postgres init)
-data/raw/         Source legal documents (git-ignored, not created yet)
-data/processed/   Cleaned/chunked text (git-ignored, not created yet)
+data/raw/         Source legal documents (git-ignored; download URLs in README)
 docs/             Architecture notes, decisions, evaluation results
 docker-compose.yml
 Makefile          Shortcuts for common commands (`make help`)
@@ -84,5 +83,8 @@ PHP and Composer run **only inside Docker**. The host has PHP 7.4, which Laravel
 | Artisan / Composer | `make artisan c="route:list"`, `make composer c="require x/y"` |
 | Postgres shell | `make psql` |
 | Logs | `make logs s=backend` |
+| Ingest an act | `make artisan c='law:ingest raw/<file>.pdf --title="..." --short=... --from-page=N'` |
+| Embedding progress | `make artisan c="law:status"` |
+| Reload queue worker after code changes | `docker compose restart worker` |
 
 Ports on the host: frontend 5173, API 8090, Postgres 5433, Ollama 11434.

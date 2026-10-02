@@ -3,6 +3,8 @@ FROM php:8.4-fpm
 # System libraries needed by the PHP extensions below
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git unzip libpq-dev libzip-dev libicu-dev \
+        # pdftohtml: extracts PDF text with font sizes (used to drop footnotes)
+        poppler-utils \
     && docker-php-ext-install pdo_pgsql pgsql zip intl bcmath pcntl opcache \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
