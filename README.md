@@ -97,4 +97,7 @@ instructions will be added here.
 
 ## License
 
-To be decided.
+This project is licensed under the [MIT License](LICENSE).
+
+The license covers this project's source code only. Legal texts used as source data
+remain subject to their own terms.
