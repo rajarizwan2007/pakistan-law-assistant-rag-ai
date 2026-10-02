@@ -6,6 +6,7 @@ use App\Services\Ingestion\DocumentTextExtractor;
 use App\Services\Ingestion\IngestionService;
 use App\Services\Ingestion\LegalTextChunker;
 use App\Services\Ollama\OllamaClient;
+use App\Services\Retrieval\Retriever;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,6 +31,13 @@ class AppServiceProvider extends ServiceProvider
             extractor: $app->make(DocumentTextExtractor::class),
             chunker: $app->make(LegalTextChunker::class),
             embedBatchSize: config('rag.embed_batch_size'),
+        ));
+
+        $this->app->bind(Retriever::class, fn ($app) => new Retriever(
+            ollama: $app->make(OllamaClient::class),
+            topK: config('rag.top_k'),
+            threshold: config('rag.similarity_threshold'),
+            queryPrefix: config('rag.query_prefix'),
         ));
     }
 

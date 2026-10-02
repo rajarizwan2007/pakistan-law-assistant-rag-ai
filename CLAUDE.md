@@ -87,6 +87,8 @@ PHP and Composer run **only inside Docker**. The host has PHP 7.4, which Laravel
 | Logs | `make logs s=backend` |
 | Ingest an act | `make artisan c='law:ingest raw/<file>.pdf --title="..." --short=... --from-page=N'` |
 | Embedding progress | `make artisan c="law:status"` |
+| Inspect retrieval for a question | `make artisan c='law:search "punishment for theft"'` |
+| Evaluate retrieval / tune threshold | `make artisan c="law:eval --details"` (re-run after changing chunking, models or data) |
 | Reload queue worker after code changes | `docker compose restart worker` |
 
 Ports on the host: frontend 5173, API 8090, Postgres 5433, Ollama 11434.

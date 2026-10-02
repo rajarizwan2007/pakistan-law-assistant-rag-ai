@@ -29,3 +29,9 @@ export interface SearchResult {
   content: string
   score: number
 }
+
+export interface SearchResponse {
+  data: SearchResult[]
+  below_threshold: SearchResult[]
+  meta: { threshold: number; has_relevant: boolean }
+}

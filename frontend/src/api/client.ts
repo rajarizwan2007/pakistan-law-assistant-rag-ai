@@ -1,4 +1,4 @@
-import type { HealthResponse, SearchResult, Source } from '../types'
+import type { HealthResponse, SearchResponse, Source } from '../types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
@@ -22,7 +22,5 @@ export const api = {
   health: () => request<HealthResponse>('/health'),
   sources: () => request<{ data: Source[] }>('/sources').then((r) => r.data),
   search: (q: string, limit = 5) =>
-    request<{ data: SearchResult[] }>(`/search?${new URLSearchParams({ q, limit: String(limit) })}`).then(
-      (r) => r.data,
-    ),
+    request<SearchResponse>(`/search?${new URLSearchParams({ q, limit: String(limit) })}`),
 }

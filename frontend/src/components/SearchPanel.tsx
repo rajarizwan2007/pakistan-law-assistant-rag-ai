@@ -1,17 +1,34 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api/client'
-import type { SearchResult } from '../types'
+import type { SearchResponse, SearchResult } from '../types'
 
 const EXAMPLES = [
   'What is the punishment for theft?',
-  'What happens if someone steals a car?',
-  'Punishment for murder',
-  'Is defamation a crime?',
+  'Someone threatened to kill me, is that a crime?',
+  'Throwing acid on someone',
+  'How do I register a company?',
 ]
+
+function ResultItem({ result, dimmed = false }: { result: SearchResult; dimmed?: boolean }) {
+  return (
+    <li className={dimmed ? 'result dimmed' : 'result'}>
+      <div className="result-head">
+        <span className="citation">{result.citation}</span>
+        <span className="heading">{result.heading}</span>
+        <span className="score" title="Cosine similarity (1 = identical meaning)">
+          {result.score.toFixed(3)}
+        </span>
+      </div>
+      {result.chapter && <div className="muted small">{result.chapter}</div>}
+      <p className="content">{result.content}</p>
+    </li>
+  )
+}
 
 export function SearchPanel() {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResult[] | null>(null)
+  const [response, setResponse] = useState<SearchResponse | null>(null)
+  const [showBelow, setShowBelow] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -20,8 +37,9 @@ export function SearchPanel() {
     setQuery(q)
     setLoading(true)
     setError(null)
+    setShowBelow(false)
     try {
-      setResults(await api.search(q))
+      setResponse(await api.search(q))
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -36,10 +54,10 @@ export function SearchPanel() {
 
   return (
     <section className="card">
-      <h2>Semantic search (preview)</h2>
+      <h2>Semantic search</h2>
       <p className="muted">
-        Finds the sections closest in meaning to your question using embeddings and pgvector. No AI-written answer
-        yet; that comes in a later phase.
+        Finds the sections closest in meaning to your question (embeddings + pgvector). Only sections scoring at
+        least the relevance threshold count as sources. No AI-written answer yet; that comes in the next phase.
       </p>
 
       <form onSubmit={onSubmit} className="search-form">
@@ -64,22 +82,35 @@ export function SearchPanel() {
 
       {error && <p className="status bad">{error}</p>}
 
-      {results && (
-        <ol className="results">
-          {results.map((result) => (
-            <li key={result.chunk_id} className="result">
-              <div className="result-head">
-                <span className="citation">{result.citation}</span>
-                <span className="heading">{result.heading}</span>
-                <span className="score" title="Cosine similarity (1 = identical meaning)">
-                  {result.score.toFixed(3)}
-                </span>
-              </div>
-              {result.chapter && <div className="muted small">{result.chapter}</div>}
-              <p className="content">{result.content}</p>
-            </li>
-          ))}
-        </ol>
+      {response && (
+        <>
+          <p className={response.meta.has_relevant ? 'banner ok' : 'banner refuse'}>
+            {response.meta.has_relevant
+              ? `${response.data.length} relevant section(s) found (threshold ${response.meta.threshold}).`
+              : `No section reaches the relevance threshold (${response.meta.threshold}). The assistant would refuse to answer this from its sources.`}
+          </p>
+
+          <ol className="results">
+            {response.data.map((result) => (
+              <ResultItem key={result.chunk_id} result={result} />
+            ))}
+          </ol>
+
+          {response.below_threshold.length > 0 && (
+            <>
+              <button type="button" className="link-button" onClick={() => setShowBelow((v) => !v)}>
+                {showBelow ? 'Hide' : 'Show'} {response.below_threshold.length} closest match(es) below the threshold
+              </button>
+              {showBelow && (
+                <ol className="results">
+                  {response.below_threshold.map((result) => (
+                    <ResultItem key={result.chunk_id} result={result} dimmed />
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
+        </>
       )}
     </section>
   )

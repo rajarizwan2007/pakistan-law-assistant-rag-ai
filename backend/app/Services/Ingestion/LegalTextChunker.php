@@ -19,8 +19,14 @@ namespace App\Services\Ingestion;
  */
 class LegalTextChunker
 {
-    /** "379. ...", "381A. ...", "[302. ...", "[ [ 478. ..." (a leading "[" marks an amended provision). */
-    private const SECTION_START = '/^(?:\[\s*)*(\d{1,3})([A-Z]{0,3})\.(?:\s+|$)(?=[\["“A-Z]|$)/u';
+    /**
+     * "379. ...", "381A. ...", "[302. ...", "[ [ 478. ..." (a leading "[" marks an amended provision).
+     * Also "[489A.Counterfeiting", where the source PDF omits the space after the number.
+     */
+    private const SECTION_START = '/^(?:\[\s*)*(\d{1,3})([A-Z]{0,3})\.(?:\s+(?=[\["“A-Z])|(?=[A-Z])|$)/u';
+
+    /** Words that begin the rule itself; a heading never runs past them. */
+    private const RULE_START = '(?:Whoever|Whenever|A person|Any person)\b';
 
     private const CHAPTER_START = '/^CHAPTER\s+([IVXLC]+[A-Z]?)\b\.?\s*(.*)$/u';
 
@@ -158,18 +164,24 @@ class LegalTextChunker
      * Headings end with "." or ";" (optionally inside a closing quote, as in
      * definitions: “Oath.”), followed by a separator such as "__", "-", "—" or "––".
      * A few headings have no punctuation at all; those end where the rule
-     * itself starts ("Whoever ...", "Whenever ...").
+     * itself starts ("Whoever ...", "Whenever ...", "A person ...").
      */
     private function extractHeading(string $content): ?string
     {
         $withoutNumber = preg_replace('/^(?:\[\s*)*\d{1,3}[A-Z]{0,3}\.\s*\[?/u', '', $content);
 
-        if (preg_match('/^(.{3,200}?)[.;][”"]?(?:_+|[-—–]+)?(?:\s|$)/us', $withoutNumber, $m)
-            || preg_match('/^(.{3,200}?)\s+(?=Whoever|Whenever)/us', $withoutNumber, $m)) {
-            return trim(preg_replace('/\s+/u', ' ', $m[1]), " \t\n“”\"");
+        $heading = null;
+        if (preg_match('/^(.{3,200}?)[.;][”"]?(?:_+|[-—–]+)?(?:\s|$)/us', $withoutNumber, $m)) {
+            $heading = $m[1];
         }
 
-        return null;
+        // "375. Rape A person is said to commit rape if ..." has no full stop after the
+        // heading, so the match above runs into the rule text; cut where the rule starts.
+        if (preg_match('/^(.{3,200}?)\s+(?='.self::RULE_START.')/us', $heading ?? $withoutNumber, $m)) {
+            $heading = $m[1];
+        }
+
+        return $heading === null ? null : trim(preg_replace('/\s+/u', ' ', $heading), " \t\n“”\"");
     }
 
     /**

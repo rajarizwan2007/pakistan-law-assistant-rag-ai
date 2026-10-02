@@ -100,6 +100,44 @@ removes them reliably, which regex clean-up can't.
 starts at page 30). The result is 666 chunks covering 631 sections. 2 numbers are absent because
 the provisions are repealed: s.18 and s.325.
 
+## 3b. Retrieval
+
+`App\Services\Retrieval\Retriever::retrieve($question, $sourceIds = null)`:
+
+1. Embed `"search_query: " + question` with `nomic-embed-text`.
+2. Use pgvector cosine search (`<=>`, HNSW index) to fetch `top_k × 4` candidates. With a source
+   filter, `SET LOCAL hnsw.iterative_scan = relaxed_order` stops the filter from leaving too few
+   rows. HNSW filters *after* the index search, so without this a filter can return fewer than k rows.
+3. Collapse windows of the same section into the best-scoring one.
+4. Split the results at `RAG_SIMILARITY_THRESHOLD`. The ones at or above it are the sources for the
+   answer. If none qualify, `hasRelevantChunks()` is false and the assistant must refuse.
+
+**Evaluation** (`php artisan law:eval --details`, question set in `backend/resources/eval/ppc-retrieval.json`):
+33 in-scope questions written in plain language with their expected sections, plus 10 out-of-scope questions.
+
+| Metric (2026-10-02, PPC only, top_k 5) | Value |
+|---|---|
+| Hit@1 | 23/33 (70%) |
+| Hit@5 | 28/33 (85%) |
+| MRR | 0.756 |
+| Top score, in scope | 0.691 – 0.857 (median 0.768) |
+| Top score, out of scope | 0.519 – 0.699 (median 0.637) |
+| Threshold 0.68 | answers 33/33 in scope, refuses 9/10 out of scope |
+
+**Known weakness: vocabulary mismatch.** The PPC uses legal and Arabic terms where people use
+everyday words, and the misses follow that pattern:
+- "murder" vs *qatl-i-amd* (s.302)
+- "trespass on property" vs *criminal trespass* (s.441)
+- "damage property" vs *mischief* (s.425)
+- "defend myself" vs *right of private defence* (s.96–100)
+- "threatening for money" vs *extortion* (s.383)
+
+Ideas for improving this, each to be measured with `law:eval`:
+- a glossary that expands the query with legal synonyms
+- hybrid keyword + vector search
+- a re-ranker
+- HyDE, where the LLM drafts a hypothetical answer and that draft is embedded
+
 ## 4. Models (Ollama)
 
 | Purpose    | Default model        | Why |
@@ -263,7 +301,7 @@ The frontend uses React with TypeScript and Vite. The Vite dev server proxies `/
 | `OLLAMA_EMBED_MODEL`       | `nomic-embed-text`       |
 | `OLLAMA_CHAT_MODEL`        | `qwen2.5:3b`             |
 | `RAG_TOP_K`                | `5`                      |
-| `RAG_SIMILARITY_THRESHOLD` | `0.55` (tune with eval set) |
+| `RAG_SIMILARITY_THRESHOLD` | `0.68` (chosen with `law:eval`) |
 | `OLLAMA_TIMEOUT`           | `120` seconds (CPU generation is slow) |
 
 ## 10. Key decisions and trade-offs
@@ -290,8 +328,8 @@ The dev machine has 15 GB RAM and no GPU. To keep inference usable:
 
 1. **Infrastructure** ✅: Docker Compose with `db`, `ollama`, `backend`, `nginx`, `worker` and `frontend`, plus a health endpoint.
 2. **Schema & ingestion** ✅: migrations, chunker, `law:ingest`, embedding jobs and one act ingested.
-3. **Retrieval:** the `Retriever`, threshold handling and a debug endpoint/command to inspect results.
+3. **Retrieval** ✅: the `Retriever`, threshold handling, `law:search` and `law:eval`.
 4. **Answering:** prompt builder, citation parser and `POST /api/ask`, with tests using `Http::fake()`.
 5. **Frontend:** chat UI, citations, source panel and disclaimer.
-6. **Evaluation:** a set of questions with expected sections, to measure retrieval hit-rate and refusal accuracy.
+6. **Evaluation:** retrieval evaluation is done in Phase 3 (`law:eval`). Still to add: answer-quality evaluation with a set of questions with expected sections, to measure retrieval hit-rate and refusal accuracy.
 7. **Later improvements:** hybrid search (vector + full-text), SSE streaming, reranking, CI with GitHub Actions.

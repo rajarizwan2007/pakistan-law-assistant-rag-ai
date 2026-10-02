@@ -6,6 +6,50 @@ Add a new dated section at the top for each work session. The design itself is i
 
 ---
 
+## 2026-10-02 — Phase 3: retrieval
+
+### Built
+- **`Retriever` service:**
+  1. Embeds the question with the `search_query:` prefix and fetches `top_k×4` candidates by cosine distance.
+  2. Keeps the best window per section and splits the results at the threshold into `chunks` and `belowThreshold`.
+  3. Supports an optional source filter, with `hnsw.iterative_scan` so the filter doesn't leave too few results.
+- **`php artisan law:search "question" --k= --threshold= --source=`** prints a table of scores, citations and headings.
+- **`php artisan law:eval --details`** reports Hit@1, Hit@k and MRR, the score distribution, and a threshold sweep with a suggested threshold.
+- **Evaluation set** in `backend/resources/eval/ppc-retrieval.json`: 33 in-scope questions in plain language with expected sections, plus 10 out-of-scope questions.
+- **`/api/search`** now uses the Retriever and returns `data`, `below_threshold` and `meta.threshold`/`has_relevant`.
+  The browser page shows a green or red relevance banner and can show the matches below the threshold, greyed out.
+- **Tests:** 31 pass (92 assertions). The Retriever tests use hand-made vectors so the similarities are known exactly.
+
+### Chunker fixes found while writing the evaluation set
+- **`[489A.Counterfeiting`:** the official PDF has no space after the number, so the section was merged into s.489.
+  Fixing this also recovered **s.263A**. The result is now 668 chunks and 633 sections.
+- **`375. Rape A person is said…`:** there's no full stop after the heading. Headings now stop where the rule text
+  begins ("Whoever", "Whenever", "A person", "Any person").
+- **s.82:** the age is now "[ten] years" after an amendment, so the evaluation question was corrected.
+
+### Results (baseline to beat)
+| Metric | Value |
+|---|---|
+| Hit@1 | 23/33 (70%) |
+| Hit@5 | 28/33 (85%) |
+| MRR | 0.756 |
+| In-scope top score | 0.691–0.857 |
+| Out-of-scope top score | 0.519–0.699 |
+
+- **`RAG_SIMILARITY_THRESHOLD` changed from 0.55 to 0.68.** This answers 33/33 in-scope questions and refuses 9/10 out-of-scope ones.
+  The one that gets through is "inheritance among sons and daughters" (0.699 → s.498A, which deals with depriving women of inheritance, so it's actually a close call).
+- **Misses come from vocabulary mismatch:** murder vs *qatl-i-amd*, trespass, mischief, private defence and extortion.
+
+### Next up
+- **Phase 4, answering:**
+  - `OllamaClient::chat()`, `PromptBuilder` (numbered sources, "answer only from sources, cite [n]") and `CitationParser`
+  - `AnswerService`, `POST /api/ask` and the `queries` log table
+  - the refusal path when `hasRelevantChunks()` is false
+- **Optional retrieval improvements,** each measured with `law:eval`: a glossary of legal synonyms (qatl-i-amd ← murder, …),
+  hybrid full-text + vector search, a re-ranker.
+
+---
+
 ## 2026-10-02 — Phase 2: schema & ingestion
 
 ### Built
@@ -53,7 +97,7 @@ Add a new dated section at the top for each work session. The design itself is i
 
 ### Next up: Phase 3, retrieval
 1. A `Retriever` service: embed the question with the `search_query:` prefix, find the top-k chunks by cosine distance, apply the similarity threshold, and optionally filter by source.
-2. A `law:search "question"` command to inspect results and scores, and to tune `RAG_SIMILARITY_THRESHOLD`.
+2. A `law:search "question"` command to inspect results and scores, and to tune `RAG_SIMILARITY_THRESHOLD`. (Done in Phase 3.)
 3. A small set of evaluation questions with expected sections, to measure how often retrieval finds the right section.
 
 ---

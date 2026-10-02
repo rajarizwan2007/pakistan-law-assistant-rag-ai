@@ -67,12 +67,15 @@ return [
     | top_k: number of chunks passed to the LLM as context.
     | similarity_threshold: minimum cosine similarity (0..1) for a chunk to count
     | as relevant. If no chunk passes, the assistant refuses to answer.
+    | 0.68 was chosen with `php artisan law:eval`: on the PPC question set it
+    | answers 33/33 in-scope questions and refuses 9/10 out-of-scope ones.
+    | Re-run the evaluation after adding acts or changing the embedding model.
     |
     */
 
     'top_k' => (int) env('RAG_TOP_K', 5),
 
-    'similarity_threshold' => (float) env('RAG_SIMILARITY_THRESHOLD', 0.55),
+    'similarity_threshold' => (float) env('RAG_SIMILARITY_THRESHOLD', 0.68),
 
     'disclaimer' => 'Informational only — not legal advice. Consult a qualified lawyer.',
 

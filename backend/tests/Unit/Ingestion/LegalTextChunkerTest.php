@@ -99,6 +99,24 @@ class LegalTextChunkerTest extends TestCase
         $this->assertSame(['Oath', 'Abetment of offence punishable with death if offence not committed'], $headings);
     }
 
+    public function test_a_heading_without_a_full_stop_ends_where_the_rule_starts(): void
+    {
+        $text = '375. Rape A person is said to commit rape who has sexual intercourse with a woman against her will.';
+
+        $this->assertSame('Rape', $this->chunks($text)[0]->heading);
+    }
+
+    public function test_a_section_number_without_a_following_space_is_detected(): void
+    {
+        $text = "489. Tampering with property mark. Whoever removes or defaces any property mark shall be punished.\n"
+            .'[489A.Counterfeiting currency-notes or bank-notes. Whoever counterfeits any currency-note or bank-note shall be punished.';
+
+        $chunks = $this->chunks($text);
+
+        $this->assertSame(['489', '489A'], array_map(fn (TextChunk $c) => $c->sectionRef, $chunks));
+        $this->assertSame('Counterfeiting currency-notes or bank-notes', $chunks[1]->heading);
+    }
+
     public function test_long_sections_are_split_into_overlapping_windows(): void
     {
         $body = implode(' ', array_map(fn ($i) => "word{$i}", range(1, 400)));

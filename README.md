@@ -9,8 +9,9 @@ citations to the act and section they rely on.
 
 ## Status
 
-🚧 Early development. The development environment is set up, and the Pakistan Penal Code is
-ingested: split into sections and embedded in pgvector. Retrieval and answering are next.
+🚧 Early development. The Pakistan Penal Code is ingested and searchable by meaning. Retrieval is
+measured with an evaluation set: the correct section is in the top 5 for 85% of questions, and
+off-topic questions are refused. Answer generation with citations is next.
 
 ## What this project demonstrates
 
@@ -109,7 +110,7 @@ make artisan c="law:status"     # embedding progress (the worker embeds ~50 chun
 - [x] Docker Compose setup: PostgreSQL + pgvector, Ollama, Laravel, React
 - [x] Database schema for documents, chunks and embeddings
 - [x] Ingestion and chunking pipeline (Pakistan Penal Code ingested)
-- [ ] Retrieval endpoint (vector similarity search)
+- [x] Retrieval (vector similarity search, relevance threshold, evaluation: Hit@5 85%)
 - [ ] Answer generation with citations and refusal when sources are missing
 - [ ] React chat UI with citation display
 - [ ] Evaluation set of sample questions and expected sources
